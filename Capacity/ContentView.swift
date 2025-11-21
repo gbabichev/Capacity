@@ -125,18 +125,21 @@ struct ContentView: View {
             } label: {
                 label(action: "Scan Entire Disk", icon: "internaldrive")
             }
+            .disabled(viewModel.isScanning)
 
             Button {
                 viewModel.scan(root: FileManager.default.homeDirectoryForCurrentUser)
             } label: {
                 label(action: "Scan Home Folder", icon: "house")
             }
+            .disabled(viewModel.isScanning)
 
             Button {
                 pickFolder()
             } label: {
                 label(action: "Choose Folder…", icon: "folder")
             }
+            .disabled(viewModel.isScanning)
 
             Button {
                 if let root = viewModel.scannedRoot {
@@ -146,6 +149,7 @@ struct ContentView: View {
                 label(action: "Refresh", icon: "arrow.clockwise")
             }
             .disabled(viewModel.scannedRoot == nil)
+            .disabled(viewModel.isScanning)
 
             if viewModel.canGoBack {
                 Button {
@@ -153,15 +157,19 @@ struct ContentView: View {
                 } label: {
                     label(action: "Back", icon: "arrow.backward")
                 }
+                .disabled(viewModel.isScanning)
             }
 
             Spacer()
 
             if viewModel.isScanning {
-                Button("Stop") {
+                Button {
                     viewModel.cancelScan()
+                } label: {
+                    label(action: "Stop", icon: "stop.fill")
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(.borderedProminent)
+                .tint(.red)
             }
         }
     }
@@ -393,4 +401,3 @@ actor DiskScanner {
         #endif
     }
 }
-
