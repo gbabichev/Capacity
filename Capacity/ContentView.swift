@@ -78,7 +78,6 @@ struct ContentView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             header
-            controls
             status
             list
             totals
@@ -107,6 +106,67 @@ struct ContentView: View {
             .padding(24)
             .frame(width: 420)
         }
+        .toolbar {
+            ToolbarItemGroup(placement: .navigation) {
+                Button {
+                    viewModel.scan(root: URL(fileURLWithPath: "/"))
+                } label: {
+                    label(action: "Scan Entire Disk", icon: "internaldrive")
+                }
+                .disabled(viewModel.isScanning)
+
+                Button {
+                    viewModel.scan(root: FileManager.default.homeDirectoryForCurrentUser)
+                } label: {
+                    label(action: "Scan Home Folder", icon: "house")
+                }
+                .disabled(viewModel.isScanning)
+
+                Button {
+                    pickFolder()
+                } label: {
+                    label(action: "Choose Folder…", icon: "folder")
+                }
+                .disabled(viewModel.isScanning)
+
+                if viewModel.canGoBack {
+                    Button {
+                        viewModel.goBack()
+                    } label: {
+                        label(action: "Back", icon: "arrow.backward")
+                    }
+                    .disabled(viewModel.isScanning)
+                }
+            }
+
+            ToolbarItem(placement: .status){
+                Spacer()
+            }
+            
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    if let root = viewModel.scannedRoot {
+                        viewModel.scan(root: root, preserveHistory: true)
+                    }
+                } label: {
+                    label(action: "Refresh", icon: "arrow.clockwise")
+                }
+                .disabled(viewModel.scannedRoot == nil || viewModel.isScanning)
+            }
+            
+            ToolbarItem(placement: .primaryAction) {
+                if viewModel.isScanning {
+                    Button {
+                        viewModel.cancelScan()
+                    } label: {
+                        label(action: "Stop", icon: "stop.fill")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.red)
+                    .controlSize(.large)
+                }
+            }
+        }
     }
 
     private var header: some View {
@@ -115,62 +175,6 @@ struct ContentView: View {
                 .font(.largeTitle.weight(.semibold))
             Text("Quickly see which top-level folders eat the most space. Scans recurse into each child and totals their sizes.")
                 .foregroundColor(.secondary)
-        }
-    }
-
-    private var controls: some View {
-        HStack(spacing: 12) {
-            Button {
-                viewModel.scan(root: URL(fileURLWithPath: "/"))
-            } label: {
-                label(action: "Scan Entire Disk", icon: "internaldrive")
-            }
-            .disabled(viewModel.isScanning)
-
-            Button {
-                viewModel.scan(root: FileManager.default.homeDirectoryForCurrentUser)
-            } label: {
-                label(action: "Scan Home Folder", icon: "house")
-            }
-            .disabled(viewModel.isScanning)
-
-            Button {
-                pickFolder()
-            } label: {
-                label(action: "Choose Folder…", icon: "folder")
-            }
-            .disabled(viewModel.isScanning)
-
-            Button {
-                if let root = viewModel.scannedRoot {
-                    viewModel.scan(root: root, preserveHistory: true)
-                }
-            } label: {
-                label(action: "Refresh", icon: "arrow.clockwise")
-            }
-            .disabled(viewModel.scannedRoot == nil)
-            .disabled(viewModel.isScanning)
-
-            if viewModel.canGoBack {
-                Button {
-                    viewModel.goBack()
-                } label: {
-                    label(action: "Back", icon: "arrow.backward")
-                }
-                .disabled(viewModel.isScanning)
-            }
-
-            Spacer()
-
-            if viewModel.isScanning {
-                Button {
-                    viewModel.cancelScan()
-                } label: {
-                    label(action: "Stop", icon: "stop.fill")
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.red)
-            }
         }
     }
 
