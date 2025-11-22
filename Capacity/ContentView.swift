@@ -183,10 +183,7 @@ struct ContentView: View {
     private var status: some View {
         VStack(alignment: .leading, spacing: 8) {
             if viewModel.isScanning {
-                ProgressView {
-                    Text(viewModel.statusText)
-                        .font(.subheadline)
-                }
+                EmptyView()
             } else {
                 Text(viewModel.statusText)
                     .foregroundColor(.secondary)
@@ -206,8 +203,17 @@ struct ContentView: View {
                 RoundedRectangle(cornerRadius: 12)
                     .stroke(style: .init(lineWidth: 1, dash: [6, 8]))
                     .overlay(
-                        Text(viewModel.isScanning ? "Scanning folders…" : "Results will appear here.")
-                            .foregroundColor(.secondary)
+                        VStack(spacing: 8) {
+                            if viewModel.isScanning {
+                                ProgressView()
+                                Text("Scanning folders…")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            } else {
+                                Text("Results will appear here.")
+                                    .foregroundColor(.secondary)
+                            }
+                        }
                     )
                     .frame(maxWidth: .infinity, minHeight: 260)
             } else {
@@ -223,6 +229,14 @@ struct ContentView: View {
                         Spacer()
                         Text(bytesString(usage.bytes))
                             .font(.headline.monospacedDigit())
+                            .frame(minWidth: 110, alignment: .trailing)
+                        if usage.isDirectory {
+                            Image(systemName: "chevron.right")
+                                .foregroundColor(.secondary)
+                        } else {
+                            Image(systemName: "chevron.right")
+                                .opacity(0)
+                        }
                     }
                     .padding(.vertical, 4)
                     .contentShape(Rectangle())
@@ -278,7 +292,7 @@ struct ContentView: View {
                     HStack {
                         Text("\(bytesString(used)) used / \(bytesString(total)) total")
                         Spacer()
-                        Text(String(format: "%.1f%% used", percent * 100))
+                        Text("\(percentString(percent)) used")
                             .monospacedDigit()
                     }
                     ProgressView(value: percent)
@@ -300,6 +314,14 @@ private func bytesString(_ bytes: Int64) -> String {
     formatter.allowedUnits = [.useBytes, .useKB, .useMB, .useGB, .useTB]
     formatter.countStyle = .file
     return formatter.string(fromByteCount: bytes)
+}
+
+private func percentString(_ value: Double) -> String {
+    let formatter = NumberFormatter()
+    formatter.numberStyle = .percent
+    formatter.maximumFractionDigits = 1
+    formatter.minimumFractionDigits = 1
+    return formatter.string(from: NSNumber(value: value)) ?? ""
 }
 
 actor DiskScanner {
