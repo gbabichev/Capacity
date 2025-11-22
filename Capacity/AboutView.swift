@@ -4,14 +4,8 @@ import AppKit
 struct AboutView: View {
     var body: some View {
         VStack(spacing: 18) {
-            if let icon = NSApplication.shared.applicationIconImage {
-                Image(nsImage: icon)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 72, height: 72)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .shadow(radius: 4, y: 2)
-            }
+            
+            LiveAppIconView()
 
             VStack(spacing: 4) {
                 Text("Capacity")
@@ -34,7 +28,7 @@ struct AboutView: View {
                             .resizable()
                             .scaledToFill()
                             .frame(width: 64, height: 64)
-                            .offset(y: 3)
+                            .offset(y: 6)
                             .clipShape(Circle())
                             .overlay(Circle().stroke(Color.secondary.opacity(0.2), lineWidth: 1))
                         VStack(alignment: .leading, spacing: 4) {
@@ -81,5 +75,24 @@ private struct AboutRow: View {
                 .font(.subheadline)
                 .foregroundColor(.primary)
         }
+    }
+}
+
+struct LiveAppIconView: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var refreshID = UUID()
+
+    var body: some View {
+        Image(nsImage: NSApp.applicationIconImage)
+            .resizable()
+            .scaledToFit()
+            .id(refreshID) // force SwiftUI to re-evaluate the image
+            .frame(width: 72, height: 72)
+            .onChange(of: colorScheme) { _,_ in
+                // Let AppKit update its icon, then refresh the view
+                DispatchQueue.main.async {
+                    refreshID = UUID()
+                }
+            }
     }
 }

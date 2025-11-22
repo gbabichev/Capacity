@@ -222,8 +222,14 @@ struct ContentView: View {
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
                             } else {
-                                Text("Results will appear here.")
-                                    .foregroundColor(.secondary)
+                                VStack(spacing: 6) {
+                                    Image(systemName: "hand.wave")
+                                        .font(.system(size: 28, weight: .regular))
+                                        .foregroundColor(.secondary)
+                                    Text("Pick a folder or run a scan to see disk usage.")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
                             }
                         }
                     )
