@@ -29,17 +29,20 @@ final class DiskUsageViewModel: ObservableObject {
         scanTask?.cancel()
         folderUsage = []
         isScanning = true
-        scannedRoot = root
         statusText = "Scanning \(root.path)..."
         usedCapacityBytes = nil
         totalCapacityBytes = nil
         volumeRoot = nil
         selectionTotalBytes = 0
-        if appendHistory, let current = scannedRoot {
-            history.append(current)
+
+        let previousRoot = scannedRoot
+        if appendHistory, let previousRoot {
+            history.append(previousRoot)
         } else if !preserveHistory {
             history.removeAll()
         }
+
+        scannedRoot = root
         canGoBack = !history.isEmpty
 
         scanTask = Task {
@@ -137,21 +140,21 @@ struct ContentView: View {
                 }
                 .disabled(viewModel.isScanning)
 
-                if viewModel.canGoBack {
-                    Button {
-                        viewModel.goBack()
-                    } label: {
-                        label(action: "Back", icon: "arrow.backward")
-                    }
-                    .disabled(viewModel.isScanning)
-                }
             }
 
             ToolbarItem(placement: .status){
                 Spacer()
             }
             
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .primaryAction) {
+
+                Button {
+                    viewModel.goBack()
+                } label: {
+                    label(action: "Back", icon: "arrow.backward")
+                }
+                .disabled(viewModel.canGoBack == false)
+                
                 Button {
                     if let root = viewModel.scannedRoot {
                         viewModel.scan(root: root, preserveHistory: true)
@@ -160,19 +163,16 @@ struct ContentView: View {
                     label(action: "Refresh", icon: "arrow.clockwise")
                 }
                 .disabled(viewModel.scannedRoot == nil || viewModel.isScanning)
-            }
-            
-            ToolbarItem(placement: .primaryAction) {
-                if viewModel.isScanning {
-                    Button {
-                        viewModel.cancelScan()
-                    } label: {
-                        label(action: "Stop", icon: "stop.fill")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.red)
-                    .controlSize(.large)
+                
+                Button {
+                    viewModel.cancelScan()
+                } label: {
+                    label(action: "Stop", icon: "stop.fill")
                 }
+                //.tint(.red)
+                //.controlSize(.large)
+                .disabled(viewModel.isScanning == false)
+                
             }
         }
     }
@@ -202,7 +202,7 @@ struct ContentView: View {
             }
 
             if let root = viewModel.scannedRoot {
-                Text("Current root: \(root.path)")
+                Text("Selected Folder: \(root.path)")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
