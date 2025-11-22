@@ -17,6 +17,7 @@ final class DiskUsageViewModel: ObservableObject {
     @Published var scannedRoot: URL?
     @Published var usedCapacityBytes: Int64?
     @Published var totalCapacityBytes: Int64?
+    @Published var volumeRoot: URL?
     @Published var canGoBack = false
     @Published var selectionTotalBytes: Int64 = 0
 
@@ -32,6 +33,7 @@ final class DiskUsageViewModel: ObservableObject {
         statusText = "Scanning \(root.path)..."
         usedCapacityBytes = nil
         totalCapacityBytes = nil
+        volumeRoot = nil
         selectionTotalBytes = 0
         if appendHistory, let current = scannedRoot {
             history.append(current)
@@ -51,6 +53,7 @@ final class DiskUsageViewModel: ObservableObject {
             if let info = volumeInfo {
                 usedCapacityBytes = info.used
                 totalCapacityBytes = info.total
+                volumeRoot = info.volume
             }
             isScanning = false
             statusText = folderUsage.isEmpty ? "Nothing to show here." : "Scan complete."
@@ -74,6 +77,7 @@ final class DiskUsageViewModel: ObservableObject {
 struct ContentView: View {
     @StateObject private var viewModel = DiskUsageViewModel()
     @AppStorage("showFullDiskAccessPrompt") private var showFullDiskAccessPrompt = true
+    @State private var showUnaccountedHelp = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -82,7 +86,7 @@ struct ContentView: View {
             list
             totals
         }
-        .padding(24)
+        .padding(16)
         .frame(minWidth: 700, minHeight: 520)
         .sheet(isPresented: $showFullDiskAccessPrompt) {
             VStack(alignment: .leading, spacing: 16) {
@@ -105,6 +109,10 @@ struct ContentView: View {
             }
             .padding(24)
             .frame(width: 420)
+        }
+        .sheet(isPresented: $showUnaccountedHelp) {
+            UnaccountedHelpView()
+                .frame(width: 420)
         }
         .toolbar {
             ToolbarItemGroup(placement: .navigation) {
@@ -171,9 +179,9 @@ struct ContentView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Disk Usage Snapshot")
+            Text("Disk Usage Report")
                 .font(.largeTitle.weight(.semibold))
-            Text("Quickly see which top-level folders eat the most space. Scans recurse into each child and totals their sizes.")
+            Text("Quickly see which folders eat the most space.")
                 .foregroundColor(.secondary)
         }
     }
@@ -290,7 +298,8 @@ struct ContentView: View {
                     
                     Divider()
                     
-                    Text("Disk usage for \(viewModel.scannedRoot?.path ?? "volume")")
+                    let displayPath = viewModel.volumeRoot?.path ?? viewModel.scannedRoot?.path ?? "/"
+                    Text("Disk usage for \(displayPath)")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     HStack {
@@ -302,9 +311,16 @@ struct ContentView: View {
                     ProgressView(value: percent)
                         .progressViewStyle(.linear)
                     if unaccounted > 0 {
-                        Text("Unaccounted (system/purgeable/snapshots): \(bytesString(unaccounted))")
-                            .font(.footnote)
-                            .foregroundColor(.secondary)
+                        Button {
+                            showUnaccountedHelp = true
+                        } label: {
+                            Text("Unaccounted (system/purgeable/snapshots): \(bytesString(unaccounted))")
+                                .font(.footnote)
+                                .foregroundColor(.secondary)
+                                .underline()
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.top, 4)
                     }
                 }
                 .padding(.top, 8)
@@ -326,6 +342,90 @@ private func percentString(_ value: Double) -> String {
     formatter.maximumFractionDigits = 1
     formatter.minimumFractionDigits = 1
     return formatter.string(from: NSNumber(value: value)) ?? ""
+}
+
+private struct CopyableCommand: View {
+    let command: String
+    @State private var copied = false
+
+    init(_ command: String) {
+        self.command = command
+    }
+
+    var body: some View {
+        Button {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(command, forType: .string)
+            copied = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                copied = false
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Text(command)
+                    .font(.system(.body, design: .monospaced))
+                    .foregroundColor(.primary)
+                Spacer()
+                if copied {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                } else {
+                    Image(systemName: "doc.on.doc")
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(8)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.secondary.opacity(0.08))
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct UnaccountedHelpView: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("What is unaccounted space?")
+                .font(.title3.weight(.semibold))
+            Text("""
+            The gap often comes from Time Machine local snapshots, purgeable APFS space, separate volumes, or system caches that Finder counts as used.
+            """)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("List local snapshots:")
+                    .font(.headline)
+                CopyableCommand("tmutil listlocalsnapshots /")
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Delete a snapshot (replace <id> with the one you want to remove):")
+                    .font(.headline)
+                CopyableCommand("tmutil deletelocalsnapshots <id>")
+                Text("Example: sudo tmutil deletelocalsnapshots 2024-11-23-120000")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+            }
+            
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Delete ALL snapshots")
+                    .font(.headline)
+                CopyableCommand("tmutil deletelocalsnapshots /")
+            }
+
+            Text("Be cautious when deleting snapshots; keep any you might need for recovery.")
+                .font(.footnote)
+                .foregroundColor(.secondary)
+
+            Spacer()
+        }
+        .padding(24)
+    }
 }
 
 actor DiskScanner {
@@ -370,7 +470,7 @@ actor DiskScanner {
         return usages
     }
     
-    func volumeUsage(for root: URL) async -> (used: Int64, total: Int64)? {
+    func volumeUsage(for root: URL) async -> (used: Int64, total: Int64, volume: URL)? {
         let path = root.path
         guard
             let attrs = try? FileManager.default.attributesOfFileSystem(forPath: path),
@@ -380,8 +480,9 @@ actor DiskScanner {
             debugLog("Failed to read filesystem attributes for \(path)")
             return nil
         }
+        let volURL = (try? root.resourceValues(forKeys: [.volumeURLKey]).volume) ?? root
         let used = max(total - free, 0)
-        return (used, total)
+        return (used, total, volURL)
     }
 
     private func folderSize(at url: URL, fileManager: FileManager) -> Int64 {
